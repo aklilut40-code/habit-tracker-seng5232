@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker - Daily Goals</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { color: #333; text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 25px; font-size: 14px; }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+        }
+        .stat { text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; }
+        .stat-label { font-size: 12px; opacity: 0.9; margin-top: 5px; }
+        
+        .habit-list { margin-bottom: 25px; max-height: 400px; overflow-y: auto; }
+        .habit-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        .habit-name { font-size: 18px; font-weight: 600; color: #333; }
+        .habit-name.completed { text-decoration: line-through; color: #999; }
+        .goal-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+            background: #ff9800;
+            color: white;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .streak { font-size: 12px; color: #ff9800; margin-top: 5px; }
+        
+        .check-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .check-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .add-habit {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .add-habit input {
+            flex: 2;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .add-habit select {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .add-habit button {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .error-message { background: #ffebee; color: #c62828; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .connection-status {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 15px;
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .connected { background: #e8f5e9; color: #2e7d32; }
+        .disconnected { background: #ffebee; color: #c62828; }
+        
+        .export-btn {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Daily Habit Tracker</h1>
+        <div class="subtitle">Build better habits, one day at a time</div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="totalHabits">0</div>
+                <div class="stat-label">Total Habits</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="completedToday">0</div>
+                <div class="stat-label">Completed Today</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="bestStreak">0</div>
+                <div class="stat-label">Best Streak</div>
+            </div>
+        </div>
+
+        <div class="habit-list" id="habitList">
+            <div class="loading">Loading habits...</div>
+        </div>
+
+        <div class="add-habit">
+            <input type="text" id="habitName" placeholder="Habit name..." onkeypress="if(event.key==='Enter') addHabit()">
+            <select id="goalType">
+                <option value="daily">📅 Daily</option>
+                <option value="weekly">📆 Weekly</option>
+                <option value="monthly">📅 Monthly</option>
+            </select>
+            <button onclick="addHabit()">+ Add</button>
+        </div>
+
+        <button class="export-btn" onclick="exportData()">📎 Export Data (CSV)</button>
+
+        <div id="messageArea"></div>
+        <div id="connectionStatus" class="connection-status"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        const USER_ID = 'user123';
+
+        async function checkConnection() {
+            try {
+                const response = await fetch(API_URL + '/habits?userId=' + USER_ID);
+                if (response.ok) {
+                    document.getElementById('connectionStatus').innerHTML = '🟢 Connected to server on port 3001';
+                    document.getElementById('connectionStatus').className = 'connection-status connected';
+                    return true;
+                }
+            } catch (error) {
+                document.getElementById('connectionStatus').innerHTML = '🔴 Cannot connect to server. Start backend with: node server.js';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                return false;
+            }
+        }
+
+        async function loadHabits() {
+            if (!await checkConnection()) {
+                document.getElementById('habitList').innerHTML = '<div class="loading">❌ Cannot connect to server</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL + '/habits?userId=' + USER_ID);
+                const habits = await response.json();
+                renderHabitList(habits);
+                updateStats(habits);
+            } catch (error) {
+                document.getElementById('habitList').innerHTML = '<div class="loading">❌ Error loading habits</div>';
+            }
+        }
+
+        function renderHabitList(habits) {
+            const container = document.getElementById('habitList');
+            if (habits.length === 0) {
+                container.innerHTML = '<div class="loading">✨ No habits yet. Add one above!</div>';
+                return;
+            }
+            container.innerHTML = '';
+            for (let i = 0; i < habits.length; i++) {
+                const habit = habits[i];
+                container.innerHTML += `
+                    <div class="habit-item">
+                        <div>
+                            <div class="habit-name ${habit.completed ? 'completed' : ''}">
+                                ${escapeHtml(habit.name)}
+                                <span class="goal-badge">${habit.goal_type}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${habit.progress_percent}%"></div>
+                            </div>
+                            <div class="streak">${habit.streak > 0 ? '🔥 ' + habit.streak + ' day streak' : '✨ Start your streak!'}</div>
+                        </div>
+                        <div>
+                            <button class="delete-btn" onclick="deleteHabit(${habit.id}, '${escapeHtml(habit.name)}')">🗑️</button>
+                            <button class="check-btn" onclick="checkIn(${habit.id}, '${escapeHtml(habit.name)}')" ${habit.completed ? 'disabled' : ''}>
+                                ${habit.completed ? '✓ Completed' : '✓ Check In'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function checkIn(habitId, habitName) {
+            try {
+                const response = await fetch(API_URL + '/habits/' + habitId + '/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: USER_ID })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showMessage('✅ ' + habitName + ' completed! ' + data.message);
+                    loadHabits();
+                } else {
+                    showMessage(data.error || 'Failed to check in', true);
+                }
+            } catch (error) {
+                showMessage('Network error', true);
+            }
+        }
+
+        async function deleteHabit(habitId, habitName) {
+            if (!confirm('Delete "' + habitName + '"? This cannot be undone.')) return;
+            try {
+                await fetch(API_URL + '/habits/' + habitId + '?userId=' + USER_ID, { method: 'DELETE' });
+                showMessage('🗑️ Deleted: ' + habitName);
+                loadHabits();
+            } catch (error) {
+                showMessage('Error deleting habit', true);
+            }
+        }
+
+        async function addHabit() {
+            const name = document.getElementById('habitName').value.trim();
+            const goal_type = document.getElementById('goalType').value;
+
+            if (!name) {
+                showMessage('Please enter a habit name', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL + '/habits', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, userId: USER_ID, goal_type: goal_type, goal_target: 1 })
+                });
+                if (response.ok) {
+                    showMessage('✨ Added new ' + goal_type + ' habit: ' + name);
+                    document.getElementById('habitName').value = '';
+                    loadHabits();
+                } else {
+                    const error = await response.json();
+                    showMessage(error.error || 'Failed to add habit', true);
+                }
+            } catch (error) {
+                showMessage('Error adding habit', true);
+            }
+        }
+
+        async function exportData() {
+            try {
+                const response = await fetch(API_URL + '/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: USER_ID })
+                });
+                const data = await response.json();
+                
+                const blob = new Blob([data.csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'habit_tracker_export_' + new Date().toISOString().split('T')[0] + '.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+                showMessage('📎 Data exported successfully!');
+            } catch (error) {
+                showMessage('Export failed', true);
+            }
+        }
+
+        function updateStats(habits) {
+            let total = habits.length;
+            let completedToday = 0;
+            let bestStreak = 0;
+            
+            for (let i = 0; i < habits.length; i++) {
+                if (habits[i].completed) completedToday++;
+                if (habits[i].streak > bestStreak) bestStreak = habits[i].streak;
+            }
+            
+            document.getElementById('totalHabits').innerText = total;
+            document.getElementById('completedToday').innerText = completedToday;
+            document.getElementById('bestStreak').innerText = bestStreak;
+        }
+
+        function showMessage(msg, isError) {
+            const div = document.getElementById('messageArea');
+            div.innerHTML = '<div class="message ' + (isError ? 'error-message' : '') + '">' + msg + '</div>';
+            setTimeout(function() { div.innerHTML = ''; }, 3000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        loadHabits();
+        setInterval(loadHabits, 30000);
+    </script>
+</body>
+</html>
